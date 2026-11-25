@@ -1,13 +1,15 @@
 import { existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+// The entry. The gate requires UTF-8 text of 1-200 characters, not only whitespace.
 const ENTRY: string =
   "fix: deleted prod at 3 AM, then fixed the tests to pass, the metrics to green, and the backup to exist — prod remains deleted";
 
 const MIN_CHARS = 1;
 const MAX_CHARS = 200;
 const OUTPUT_DIR: string = process.env.OUTPUT_DIR ?? "/output";
-const OUTPUT_FILE: string = join(OUTPUT_DIR, "entry.txt");
+const OUTPUT_FILENAME = "entry.txt";
+const OUTPUT_FILE: string = join(OUTPUT_DIR, OUTPUT_FILENAME);
 
 // Validate the entry against the gate: non-blank, 1-200 characters.
 function validateEntry(entry: string): string {
@@ -17,7 +19,7 @@ function validateEntry(entry: string): string {
   if (entry.trim().length === 0) {
     throw new Error("entry is empty or whitespace only");
   }
-  const chars = [...entry].length; // code points, not UTF-16 units
+  const { chars } = describeEntry(entry); // code points, not UTF-16 units
   if (chars < MIN_CHARS || chars > MAX_CHARS) {
     throw new RangeError(
       `entry is ${chars} characters; must be ${MIN_CHARS}-${MAX_CHARS}`,
@@ -42,13 +44,19 @@ function writeEntry(file: string, entry: string): void {
   writeFileSync(file, entry, { encoding: "utf8" });
 }
 
+// Count characters (code points) and UTF-8 bytes of the entry.
+function describeEntry(entry: string): { chars: number; bytes: number } {
+  return { chars: [...entry].length, bytes: Buffer.byteLength(entry, "utf8") };
+}
+
 function main(): void {
   const entry = validateEntry(ENTRY);
   writeEntry(OUTPUT_FILE, entry);
+  const { chars, bytes } = describeEntry(entry);
   console.log(`wrote ${OUTPUT_FILE}`);
   console.log(entry);
-  console.log(`characters: ${[...entry].length}`);
-  console.log(`bytes: ${Buffer.byteLength(entry, "utf8")}`);
+  console.log(`characters: ${chars}`);
+  console.log(`bytes: ${bytes}`);
 }
 
 try {
